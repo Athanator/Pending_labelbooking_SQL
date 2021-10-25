@@ -103,4 +103,4 @@ LEFT JOIN rotables r_on ON CONCAT(wpoo.partno, wpoo.serialno) = CONCAT(r_on.part
 LEFT JOIN rotables r_off ON CONCAT(wpoo.partno_off, wpoo.serialno_off) = CONCAT(r_off.partno, r_off.serialno)
 
 
-WHERE a.status = 0 AND wpoo.labelno IS NULL AND wta.action_date > 17899
+WHERE a.status = 0 AND wpoo.labelno IS NULL AND wta.action_date > 17898
