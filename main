@@ -1,4 +1,7 @@
 SELECT DISTINCT
+
+
+wpoo.actionno_i,
 wh.ac_registr as REG,
 wta.action_date,
 SUBSTR(wh.ata_chapter,1,2) as ATA,
@@ -9,11 +12,16 @@ p.description,
 wpoo.partno as partno_on,
 wpoo.serialno as serialno_on,
 CASE
+
+WHEN wpoo.partno IS NULL THEN 'Removal Only'
+
+WHEN (SELECT DISTINCT rotables.partno FROM rotables WHERE rotables.partno IN(wpoo.partno, wpoo.partno_off) AND rotables.location = wpoo.ac_position AND rotables.ac_registr = wh.ac_registr AND rotables.date_inst > wh.closing_date) IS NOT NULL THEN 'LB Superseded'
 WHEN r_on.locationno_i = -1 AND r_on.ac_registr <> wh.ac_registr THEN 'On Installed on ' || r_on.ac_registr
 WHEN r_on.locationno_i = -1 AND r_on.ac_registr =  wh.ac_registr THEN 'On Already Installed'
  WHEN r_on.locationno_i > -1  AND r_on.condition <> 'US' AND r_on.rotable_status <> 0 THEN 'Pend. comp Inspection Records'
 WHEN r_on.locationno_i > -1  AND r_on.condition <> 'US' AND r_on.rotable_status = 0 AND r_on.del_date > wta.action_date THEN 'Check counters'
- WHEN r_on.locationno_i > -1  AND r_on.condition <> 'US' AND r_on.rotable_status = 0  AND r_on.del_date <= wta.action_date THEN 'Correctly In Stock, cond: ' || r_on.condition
+ WHEN r_on.locationno_i > -1  AND r_on.condition <> 'US' AND r_on.rotable_status = 0  AND r_on.del_date <= wta.action_date AND r_on.location = 'TRANSFER' THEN 'Comp on In TRANSFER, cond: ' || r_on.condition
+ WHEN r_on.locationno_i > -1  AND r_on.condition <> 'US' AND r_on.rotable_status = 0  AND r_on.del_date <= wta.action_date AND r_on.location <>  'TRANSFER' THEN 'Correctly In Stock, cond: ' || r_on.condition
 WHEN r_on.locationno_i > -1  AND r_on.condition = 'US' THEN 'On is US in Stock'
 WHEN r_on.locationno_i IS NULL  THEN 'On not in AMOS'
 END As comp_on_loc,
@@ -25,18 +33,15 @@ WHEN wpoo.actionno_i IS NULL AND wta.actionno_i IS NOT NULL THEN 'NO'
 WHEN wpoo.actionno_i IS NOT NULL AND wpoo.labelno IS NULL THEN 'PENDING'
 WHEN wpoo.actionno_i IS NOT NULL AND wpoo.labelno IS NOT NULL THEN 'YES'
 END As LB,
-CASE       
-WHEN wpoo.ac_position = '2651GM' THEN 'MLG #1'
-WHEN wpoo.ac_position = '2649GM' THEN 'MLG #2'
-WHEN wpoo.ac_position = '2652GM' THEN 'MLG #3'
-WHEN wpoo.ac_position = '2650GM' THEN 'MLG #4'
-WHEN wpoo.ac_position = '2659GM' THEN 'NOSE WHEEL #1'
-WHEN wpoo.ac_position = '2660GM' THEN 'NOSE WHEEL #2'
-
-END As FIN,
+      
+wpoo.ac_position As FIN,
 
 CASE
 
+WHEN wpoo.partno IS NULL THEN 'Removal Only'
+WHEN wpoo.partno_off IS NULL THEN 'Installation Only'
+
+WHEN (SELECT DISTINCT rotables.partno FROM rotables WHERE rotables.partno IN(wpoo.partno, wpoo.partno_off) AND rotables.location = wpoo.ac_position AND rotables.ac_registr = wh.ac_registr AND rotables.date_inst > wh.closing_date) IS NOT NULL THEN 'LB Superseded'
 
  WHEN r_off.locationno_i = -1 AND r_off.ac_registr =  wh.ac_registr  AND  r_on.locationno_i > -1  AND r_on.condition <> 'US' AND r_off.location = wpoo.ac_position THEN 'Correct match'
 WHEN r_off.locationno_i = -1 AND r_off.ac_registr =  wh.ac_registr  AND  r_on.locationno_i > -1  AND r_on.condition <> 'US' AND r_off.location <>  wpoo.ac_position THEN 'To check position'
@@ -49,6 +54,9 @@ wpoo.serialno_off as serialno_off,
 
 
 CASE
+WHEN wpoo.partno_off IS NULL THEN 'Installation Only'
+
+WHEN (SELECT DISTINCT rotables.partno FROM rotables WHERE rotables.partno IN(wpoo.partno, wpoo.partno_off) AND rotables.location = wpoo.ac_position AND rotables.ac_registr = wh.ac_registr AND rotables.date_inst > wh.closing_date) IS NOT NULL THEN 'LB Superseded'
 WHEN r_off.locationno_i = -1 AND r_off.ac_registr <> wh.ac_registr THEN 'Off Installed on ' || r_off.ac_registr
 WHEN r_off.locationno_i = -1 AND r_off.ac_registr =  wh.ac_registr AND r_off.date_inst > wta.action_date THEN 'Check counters'
 WHEN r_off.locationno_i = -1 AND r_off.ac_registr =  wh.ac_registr AND r_off.date_inst <= wta.action_date THEN 'Off correctly Installed'
@@ -103,4 +111,5 @@ LEFT JOIN rotables r_on ON CONCAT(wpoo.partno, wpoo.serialno) = CONCAT(r_on.part
 LEFT JOIN rotables r_off ON CONCAT(wpoo.partno_off, wpoo.serialno_off) = CONCAT(r_off.partno, r_off.serialno)
 
 
-WHERE a.status = 0 AND wpoo.labelno IS NULL AND wta.action_date > 17898
+
+WHERE a.status = 0 AND wpoo.labelno IS NUL AND wta.action_date > 17899 
