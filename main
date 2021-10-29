@@ -15,7 +15,7 @@ CASE
 
 WHEN wpoo.partno IS NULL THEN 'Removal Only'
 
-WHEN (SELECT DISTINCT rotables.partno FROM rotables WHERE rotables.partno IN(wpoo.partno, wpoo.partno_off) AND rotables.location = wpoo.ac_position AND rotables.ac_registr = wh.ac_registr AND rotables.date_inst > wh.closing_date) IS NOT NULL THEN 'LB Superseded'
+WHEN (SELECT DISTINCT rotables.psn FROM rotables WHERE  rotables.location = wpoo.ac_position AND rotables.ac_registr = wh.ac_registr AND rotables.date_inst > wh.closing_date AND rownum = 1) IS NOT NULL THEN 'LB Superseded'
 WHEN r_on.locationno_i = -1 AND r_on.ac_registr <> wh.ac_registr THEN 'On Installed on ' || r_on.ac_registr
 WHEN r_on.locationno_i = -1 AND r_on.ac_registr =  wh.ac_registr THEN 'On Already Installed'
  WHEN r_on.locationno_i > -1  AND r_on.condition <> 'US' AND r_on.rotable_status <> 0 THEN 'Pend. comp Inspection Records'
@@ -41,7 +41,7 @@ CASE
 WHEN wpoo.partno IS NULL THEN 'Removal Only'
 WHEN wpoo.partno_off IS NULL THEN 'Installation Only'
 
-WHEN (SELECT DISTINCT rotables.partno FROM rotables WHERE rotables.partno IN(wpoo.partno, wpoo.partno_off) AND rotables.location = wpoo.ac_position AND rotables.ac_registr = wh.ac_registr AND rotables.date_inst > wh.closing_date) IS NOT NULL THEN 'LB Superseded'
+WHEN (SELECT DISTINCT rotables.psn FROM rotables WHERE  rotables.location = wpoo.ac_position AND rotables.ac_registr = wh.ac_registr AND rotables.date_inst > wh.closing_date AND rownum = 1) IS NOT NULL THEN 'LB Superseded'
 
  WHEN r_off.locationno_i = -1 AND r_off.ac_registr =  wh.ac_registr  AND  r_on.locationno_i > -1  AND r_on.condition <> 'US' AND r_off.location = wpoo.ac_position THEN 'Correct match'
 WHEN r_off.locationno_i = -1 AND r_off.ac_registr =  wh.ac_registr  AND  r_on.locationno_i > -1  AND r_on.condition <> 'US' AND r_off.location <>  wpoo.ac_position THEN 'To check position'
@@ -56,7 +56,7 @@ wpoo.serialno_off as serialno_off,
 CASE
 WHEN wpoo.partno_off IS NULL THEN 'Installation Only'
 
-WHEN (SELECT DISTINCT rotables.partno FROM rotables WHERE rotables.partno IN(wpoo.partno, wpoo.partno_off) AND rotables.location = wpoo.ac_position AND rotables.ac_registr = wh.ac_registr AND rotables.date_inst > wh.closing_date) IS NOT NULL THEN 'LB Superseded'
+WHEN (SELECT DISTINCT rotables.psn FROM rotables WHERE  rotables.location = wpoo.ac_position AND rotables.ac_registr = wh.ac_registr AND rotables.date_inst > wh.closing_date AND rownum = 1) IS NOT NULL THEN 'LB Superseded'
 WHEN r_off.locationno_i = -1 AND r_off.ac_registr <> wh.ac_registr THEN 'Off Installed on ' || r_off.ac_registr
 WHEN r_off.locationno_i = -1 AND r_off.ac_registr =  wh.ac_registr AND r_off.date_inst > wta.action_date THEN 'Check counters'
 WHEN r_off.locationno_i = -1 AND r_off.ac_registr =  wh.ac_registr AND r_off.date_inst <= wta.action_date THEN 'Off correctly Installed'
@@ -109,6 +109,7 @@ INNER JOIN aircraft a ON wh.ac_registr = a.ac_registr
 LEFT JOIN part p ON wpoo.partno = p.partno
 LEFT JOIN rotables r_on ON CONCAT(wpoo.partno, wpoo.serialno) = CONCAT(r_on.partno, r_on.serialno)
 LEFT JOIN rotables r_off ON CONCAT(wpoo.partno_off, wpoo.serialno_off) = CONCAT(r_off.partno, r_off.serialno)
+
 
 
 
