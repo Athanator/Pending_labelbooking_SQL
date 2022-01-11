@@ -1,4 +1,7 @@
 SELECT DISTINCT
+
+
+wpoo.actionno_i,
 wh.ac_registr as REG,
 wta.action_date,
 SUBSTR(wh.ata_chapter,1,2) as ATA,
@@ -6,14 +9,25 @@ wh.event_perfno_i as WO,
 /*TO_CHAR(wtd.text) Description_text,
 TO_CHAR(wta.text) action_text,	*/
 p.description,
+CASE
+WHEN pr.partseqno_i IS NOT NULL THEN 'HARD TIME'
+WHEN pr.partseqno_i IS NULL AND p.mat_class IN('R') THEN 'OCCM'
+WHEN pr.partseqno_i IS NULL AND p.mat_class IN('C','E') THEN 'CONSUMABLE'
+WHEN p.partseqno_i IS NULL AND wpoo.partno IS NOT NULL  THEN 'DELETED'
+END as part_type,
 wpoo.partno as partno_on,
 wpoo.serialno as serialno_on,
 CASE
+
+WHEN wpoo.partno IS NULL THEN 'Removal Only'
+
+WHEN (SELECT DISTINCT rotables.psn FROM rotables WHERE  rotables.location = wpoo.ac_position AND rotables.ac_registr = wh.ac_registr AND rotables.date_inst > wh.closing_date AND wpoo.ac_position NOT IN ('ENG1','ENG2') AND rownum = 1) IS NOT NULL THEN 'LB Superseded'
 WHEN r_on.locationno_i = -1 AND r_on.ac_registr <> wh.ac_registr THEN 'On Installed on ' || r_on.ac_registr
 WHEN r_on.locationno_i = -1 AND r_on.ac_registr =  wh.ac_registr THEN 'On Already Installed'
  WHEN r_on.locationno_i > -1  AND r_on.condition <> 'US' AND r_on.rotable_status <> 0 THEN 'Pend. comp Inspection Records'
 WHEN r_on.locationno_i > -1  AND r_on.condition <> 'US' AND r_on.rotable_status = 0 AND r_on.del_date > wta.action_date THEN 'Check counters'
- WHEN r_on.locationno_i > -1  AND r_on.condition <> 'US' AND r_on.rotable_status = 0  AND r_on.del_date <= wta.action_date THEN 'Correctly In Stock, cond: ' || r_on.condition
+ WHEN r_on.locationno_i > -1  AND r_on.condition <> 'US' AND r_on.rotable_status = 0  AND r_on.del_date <= wta.action_date AND r_on.location = 'TRANSFER' THEN 'Comp on In TRANSFER, cond: ' || r_on.condition
+ WHEN r_on.locationno_i > -1  AND r_on.condition <> 'US' AND r_on.rotable_status = 0  AND r_on.del_date <= wta.action_date AND r_on.location <>  'TRANSFER' THEN 'Correctly In Stock, cond: ' || r_on.condition
 WHEN r_on.locationno_i > -1  AND r_on.condition = 'US' THEN 'On is US in Stock'
 WHEN r_on.locationno_i IS NULL  THEN 'On not in AMOS'
 END As comp_on_loc,
@@ -22,21 +36,18 @@ END As comp_on_loc,
 
 CASE
 WHEN wpoo.actionno_i IS NULL AND wta.actionno_i IS NOT NULL THEN 'NO'
-WHEN wpoo.actionno_i IS NOT NULL AND wpoo.labelno IS NULL THEN 'PENDING'
-WHEN wpoo.actionno_i IS NOT NULL AND wpoo.labelno IS NOT NULL THEN 'YES'
+WHEN la.entryno_i IS NULL THEN 'PENDING'
+WHEN la.entryno_i IS NOT NULL THEN 'YES'
 END As LB,
-CASE       
-WHEN wpoo.ac_position = '2651GM' THEN 'MLG #1'
-WHEN wpoo.ac_position = '2649GM' THEN 'MLG #2'
-WHEN wpoo.ac_position = '2652GM' THEN 'MLG #3'
-WHEN wpoo.ac_position = '2650GM' THEN 'MLG #4'
-WHEN wpoo.ac_position = '2659GM' THEN 'NOSE WHEEL #1'
-WHEN wpoo.ac_position = '2660GM' THEN 'NOSE WHEEL #2'
-
-END As FIN,
+      
+wpoo.ac_position As FIN,
 
 CASE
 
+WHEN wpoo.partno IS NULL THEN 'Removal Only'
+WHEN wpoo.partno_off IS NULL THEN 'Installation Only'
+
+WHEN (SELECT DISTINCT rotables.psn FROM rotables WHERE  rotables.location = wpoo.ac_position AND rotables.ac_registr = wh.ac_registr AND rotables.date_inst > wh.closing_date AND wpoo.ac_position NOT IN ('ENG1','ENG2') AND rownum = 1) IS NOT NULL THEN 'LB Superseded'
 
  WHEN r_off.locationno_i = -1 AND r_off.ac_registr =  wh.ac_registr  AND  r_on.locationno_i > -1  AND r_on.condition <> 'US' AND r_off.location = wpoo.ac_position THEN 'Correct match'
 WHEN r_off.locationno_i = -1 AND r_off.ac_registr =  wh.ac_registr  AND  r_on.locationno_i > -1  AND r_on.condition <> 'US' AND r_off.location <>  wpoo.ac_position THEN 'To check position'
@@ -49,6 +60,9 @@ wpoo.serialno_off as serialno_off,
 
 
 CASE
+WHEN wpoo.partno_off IS NULL THEN 'Installation Only'
+
+WHEN (SELECT DISTINCT rotables.psn FROM rotables WHERE  rotables.location = wpoo.ac_position AND rotables.ac_registr = wh.ac_registr AND rotables.date_inst > wh.closing_date AND wpoo.ac_position NOT IN ('ENG1','ENG2') AND rownum = 1) IS NOT NULL THEN 'LB Superseded'
 WHEN r_off.locationno_i = -1 AND r_off.ac_registr <> wh.ac_registr THEN 'Off Installed on ' || r_off.ac_registr
 WHEN r_off.locationno_i = -1 AND r_off.ac_registr =  wh.ac_registr AND r_off.date_inst > wta.action_date THEN 'Check counters'
 WHEN r_off.locationno_i = -1 AND r_off.ac_registr =  wh.ac_registr AND r_off.date_inst <= wta.action_date THEN 'Off correctly Installed'
@@ -60,11 +74,6 @@ END As comp_off_loc,
 wh.closing_date,
 dbl.description as TLB,
 wpa.wpno_i,
-CASE
-WHEN wpa.wpno_i IS NOT NULL AND ath.created_date IS NOT NULL THEN TO_CHAR((TO_DATE('31.12.1971' , 'DD.MM.YYYY') + MAX(ath.created_date) OVER(PARTITION BY ath.source_key)  ), 'DD/MM/YYYY')
-WHEN wpa.wpno_i IS NOT NULL AND ath.created_date  IS  NULL THEN 'NOT FOUND'
-WHEN wpa.wpno_i IS NULL THEN 'N/A'
-END as DFP_avail,
 SUBSTR(wh.release_station,1,3)  as STA,
 (SELECT DISTINCT address.vendor FROM address INNER JOIN org_approval ON address.address_i = org_approval.main_address_i WHERE org_approval.approvalno_i = wh.approvalno_i) As MRO,
 (SELECT DISTINCT
@@ -91,16 +100,21 @@ wpoo.mutator*/
 FROM wo_text_action wta
 
 LEFT JOIN wo_part_on_off wpoo ON wpoo.actionno_i = wta.actionno_i
+LEFT OUTER JOIN label_additional la ON wpoo.labelno = la.labelno
 LEFT JOIN wo_header wh ON wpoo.event_perfno_i = wh.event_perfno_i
 INNER JOIN workstep_link wl ON wta.workstep_linkno_i = wl.workstep_linkno_i
 INNER JOIN wo_text_description wtd ON wl.descno_i = wtd.descno_i
 LEFT JOIN db_link dbl ON TO_CHAR(wta.actionno_i) = dbl.source_pk  AND dbl.ref_type = 'TLB'
 LEFT JOIN wp_assignment wpa ON wh.event_perfno_i = wpa.event_perfno_i
-LEFT JOIN aim_transfer_history ath ON wpa.wpno_i = ath.source_key_i AND ath.source_type = 'WP' AND ath.success = 'Y'
+
 INNER JOIN aircraft a ON wh.ac_registr = a.ac_registr
 LEFT JOIN part p ON wpoo.partno = p.partno
 LEFT JOIN rotables r_on ON CONCAT(wpoo.partno, wpoo.serialno) = CONCAT(r_on.partno, r_on.serialno)
 LEFT JOIN rotables r_off ON CONCAT(wpoo.partno_off, wpoo.serialno_off) = CONCAT(r_off.partno, r_off.serialno)
+LEFT JOIN part_req pr ON p.partseqno_i = pr.partseqno_i
 
 
-WHERE a.status = 0 AND wpoo.labelno IS NULL AND wta.action_date > 17898
+
+
+
+WHERE a.status = 0 AND la.entryno_i IS NULL
